@@ -79,7 +79,7 @@ if d_show.empty:
 else:
     # INSTRUCȚIUNE VIZUALĂ
     st.markdown(
-        '<div class="instruction-box">💡 TIP: Click on any row below to view technical details and export records.</div>',
+        '<div class="instruction-box">💡 TIP: Click on any row below to view technical details and export records below.</div>',
         unsafe_allow_html=True)
 
     manual_options = {
