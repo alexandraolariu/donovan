@@ -5,15 +5,28 @@ from st_aggrid import AgGrid, GridUpdateMode, DataReturnMode
 # 1. Configurare Pagină
 st.set_page_config(page_title="Water License Portal", page_icon="💧", layout="wide")
 
-# 2. Design-ul tău preferat (Pop-up style & Card)
+# 2. Design & Interactivitate (CSS)
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
     #MainMenu, footer, header {visibility: hidden;}
+
+    /* Face rândurile din tabel să pară clickabile */
+    .ag-row:hover { 
+        background-color: #e1effe !important; 
+        cursor: pointer; 
+    }
+
     .detail-card { 
         background-color: white; padding: 25px; border-radius: 12px; 
         border: 2px solid #1E3A8A; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-        margin-top: 20px; margin-bottom: 20px;
+        margin-top: 20px;
+    }
+
+    .instruction-box {
+        padding: 10px; border-radius: 5px; background-color: #e7f3ff;
+        border-left: 5px solid #1E3A8A; color: #1E3A8A; font-weight: bold;
+        margin-bottom: 15px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -35,15 +48,14 @@ df = load_data()
 # --- INTERFAȚA ---
 st.title("💧 Water License Search Portal")
 
-# 4. Cele 3 Căutări (Inclusiv WaterName/Type)
+# 4. Căutări
 c1, c2, c3 = st.columns(3)
 with c1: s_name = st.text_input("👤 Legal Name:", placeholder="Search name...")
 with c2: s_auth = st.text_input("🔢 Authorization No:", placeholder="Search ID...")
 with c3: s_water = st.text_input("🌊 Water Name/Type:", placeholder="Search water source...")
 
-# Logica de filtrare
+# Filtrare
 d_show = df.copy()
-
 if s_name:
     col = next((c for c in df.columns if 'legal' in c.lower()), df.columns[1])
     d_show = d_show[d_show[col].str.contains(s_name, case=False, na=False)]
@@ -51,7 +63,6 @@ if s_auth:
     col = next((c for c in df.columns if 'auth' in c.lower() or 'number' in c.lower()), df.columns[0])
     d_show = d_show[d_show[col].str.contains(s_auth, case=False, na=False)]
 if s_water:
-    # Căutăm fix coloana ta: WaterName/Type
     target_col = "WaterName/Type" if "WaterName/Type" in df.columns else next(
         (c for c in df.columns if 'water' in c.lower()), None)
     if target_col:
@@ -59,14 +70,18 @@ if s_water:
     else:
         d_show = d_show[d_show.apply(lambda r: r.str.contains(s_water, case=False).any(), axis=1)]
 
-# Preview limitat la pornire
 if not (s_name or s_auth or s_water):
     d_show = d_show.head(100)
 
-# --- 5. TABELUL (FĂRĂ GridOptionsBuilder pentru a evita eroarea) ---
+# --- 5. TABELUL ---
 if d_show.empty:
-    st.warning("⚠️ No results found for your search.")
+    st.warning("⚠️ No results found.")
 else:
+    # INSTRUCȚIUNE VIZUALĂ
+    st.markdown(
+        '<div class="instruction-box">💡 TIP: Click on any row below to view technical details and export records.</div>',
+        unsafe_allow_html=True)
+
     manual_options = {
         "columnDefs": [{"field": i, "headerName": i} for i in d_show.columns],
         "defaultColDef": {"resizable": True, "sortable": True, "filter": True, "minWidth": 200},
@@ -79,13 +94,12 @@ else:
         d_show,
         gridOptions=manual_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
-        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
         theme='alpine',
         height=450,
         fit_columns_on_grid_load=False
     )
 
-    # --- 6. PARTEA DE DETALII & DESCARCARE RÂND ---
+    # --- 6. POP-UP DETAILS & DOWNLOAD ---
     sel = response.get('selected_rows')
     row = None
     if isinstance(sel, pd.DataFrame) and not sel.empty:
@@ -95,25 +109,23 @@ else:
 
     if row:
         st.markdown("---")
-        st.markdown('<div class="detail-card">', unsafe_allow_html=True)
+        st.markdown('<div class="detail-card" id="details">', unsafe_allow_html=True)
         st.subheader("📋 Complete Record Details")
 
         cols = st.columns(3)
-        # Curățăm coloanele interne de tip _
         clean_items = {k: v for k, v in row.items() if not str(k).startswith('_')}
 
         for i, (k, v) in enumerate(clean_items.items()):
             cols[i % 3].markdown(f"**{k}**")
             cols[i % 3].info(str(v))
 
-        # BUTON DESCARCARE RÂND SELECTAT
+        # Download rând
         csv_single = pd.DataFrame([clean_items]).to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Export This Record (CSV)", csv_single, "single_record.csv", "text/csv")
+        st.download_button("📥 Export This Record (CSV)", csv_single, "record.csv", "text/csv", key="single_export")
         st.markdown('</div>', unsafe_allow_html=True)
 
-# 7. BUTON DESCARCARE GLOBALĂ (Jos de tot)
+# 7. Download Global
 if not d_show.empty:
     st.markdown("---")
-    st.write(f"Found {len(d_show)} records.")
     full_csv = d_show.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Download All Results (CSV)", full_csv, "search_results.csv", "text/csv")
+    st.download_button("📥 Download All Results (CSV)", full_csv, "results.csv", "text/csv", key="full_export")
