@@ -1,90 +1,47 @@
-// CONFIGURARE
-const FILE_PATH = 'water-licence-attributes.csv'; // Numele fișierului descarcat lângă index.html
+const FILE_PATH = 'water-licence-attributes.csv'; // Numele fișierului creat de robot
 const searchInput = document.getElementById('searchInput');
 const resultsDiv = document.getElementById('results');
-const statusText = document.getElementById('status-text');
-const loader = document.getElementById('loader');
+const statusDiv = document.getElementById('status');
 
 let database = [];
-let index;
-
-// Inițializare motor de căutare FlexSearch
-// "Document" permite căutarea în mai multe coloane simultan
-index = new FlexSearch.Document({
-    document: {
-        id: "id",
-        index: ["ClientLegalName", "AuthorisationReference", "PostalAddressLine1", "PostalPropertyName"]
-    },
-    tokenize: "forward", // Permite căutarea parțială (ex: "STRAD" găsește "STRADBROKE")
-    context: true
+let index = new FlexSearch.Document({
+    document: { id: "id", index: ["ClientLegalName", "AuthorisationReference"] },
+    tokenize: "forward"
 });
 
-// Încărcarea datelor
-console.log("Începe descărcarea CSV...");
-
+// Citim fișierul descărcat de robot
 Papa.parse(FILE_PATH, {
     download: true,
     header: true,
-    dynamicTyping: true,
     skipEmptyLines: true,
     complete: function(results) {
         database = results.data.map((item, idx) => ({ id: idx, ...item }));
-        
-        // Populăm indexul de căutare
         database.forEach(doc => index.add(doc));
         
-        // Update interfață
-        statusText.innerHTML = `✅ <b>${database.length.toLocaleString()}</b> înregistrări active indexate.`;
-        loader.classList.add('hidden');
+        statusDiv.innerHTML = `✅ <b>${database.length.toLocaleString()}</b> înregistrări la zi.`;
         searchInput.disabled = false;
-        searchInput.focus();
-        console.log("Indexare completă.");
     },
-    error: function(err) {
-        statusText.innerText = "❌ Eroare la citirea fișierului CSV.";
-        loader.classList.add('hidden');
-        console.error(err);
+    error: function() {
+        statusDiv.innerHTML = "❌ Eroare: Fișierul CSV nu a fost găsit. Rulează 'Actions' pe GitHub!";
     }
 });
 
-// Logica de căutare pe evenimentul de tastare
-searchInput.addEventListener('input', function(e) {
-    const query = e.target.value.trim();
+searchInput.addEventListener('input', function() {
+    const val = this.value;
     resultsDiv.innerHTML = '';
+    if (val.length < 3) return;
 
-    if (query.length < 2) return;
-
-    // Căutăm în index (limităm la 50 de rezultate pentru performanță vizuală)
-    const searchResults = index.search(query, { 
-        limit: 50, 
-        enrich: true,
-        suggest: true 
-    });
-
-    if (searchResults.length > 0) {
-        // Combinăm rezultatele din toate câmpurile indexate
-        const uniqueIds = new Set();
-        searchResults.forEach(fieldResults => {
-            fieldResults.result.forEach(id => uniqueIds.add(id));
+    const results = index.search(val, { limit: 30, enrich: true });
+    if (results.length > 0 && results[0].result) {
+        results[0].result.forEach(id => {
+            const item = database[id];
+            const div = document.createElement('div');
+            div.className = 'card';
+            div.innerHTML = `
+                <strong>${item.ClientLegalName}</strong><br>
+                <small>REF: ${item.AuthorisationReference} | Adresă: ${item.PostalAddressLine1 || 'N/A'}</small>
+            `;
+            resultsDiv.appendChild(div);
         });
-
-        uniqueIds.forEach(id => {
-            renderCard(database[id]);
-        });
-    } else {
-        resultsDiv.innerHTML = '<div class="no-results">Nu am găsit niciun rezultat pentru căutarea ta.</div>';
     }
 });
-
-// Funcție pentru a genera un card cu date
-function renderCard(item) {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-        <h3>${item.ClientLegalName || 'Fără Nume'}</h3>
-        <p><span class="ref">REF: ${item.AuthorisationReference}</span></p>
-        <p>📍 <b>Adresă:</b> ${item.PostalAddressLine1 || '-'}, ${item.PostalPropertyName || ''}</p>
-        <p>📑 <b>Status:</b> ${item.AuthorisationStatus || 'Activ'}</p>
-    `;
-    resultsDiv.appendChild(card);
-}
