@@ -1,11 +1,11 @@
 import streamlit as st
 import pandas as pd
-from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode, DataReturnMode
+from st_aggrid import AgGrid, GridUpdateMode, DataReturnMode
 
 # 1. Configurare Pagină
 st.set_page_config(page_title="Water License Portal", page_icon="💧", layout="wide")
 
-# 2. Design Personalizat (CSS)
+# 2. Design-ul tău preferat (Reinstaurat)
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -13,8 +13,8 @@ st.markdown("""
     .detail-card { 
         background-color: white; padding: 25px; border-radius: 12px; 
         border: 2px solid #1E3A8A; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+        margin-top: 20px;
     }
-    .stInfo { border-radius: 8px; font-size: 14px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -22,14 +22,12 @@ st.markdown("""
 # 3. Încărcare Date
 @st.cache_data
 def load_data():
-    file_name = "water-licence-attributes.csv"
-    for enc in ['utf-8', 'cp1252', 'latin1', 'iso-8859-1']:
-        try:
-            df = pd.read_csv(file_name, sep=None, engine='python', encoding=enc, on_bad_lines='skip')
-            return df.fillna('N/A').astype(str)
-        except:
-            continue
-    return pd.DataFrame()
+    try:
+        df = pd.read_csv("water-licence-attributes.csv", sep=None, engine='python', encoding='cp1252',
+                         on_bad_lines='skip')
+        return df.fillna('N/A').astype(str)
+    except:
+        return pd.DataFrame()
 
 
 df = load_data()
@@ -37,83 +35,75 @@ df = load_data()
 # --- INTERFAȚA ---
 st.title("💧 Water License Search Portal")
 
-# 4. CĂUTARE TRIPLA (Configurată pentru WaterName/Type)
+# 4. Cele 3 Căutări (Inclusiv WaterName/Type)
 c1, c2, c3 = st.columns(3)
+with c1: s_name = st.text_input("👤 Legal Name:", placeholder="Search...")
+with c2: s_auth = st.text_input("🔢 Authorization No:", placeholder="Search...")
+with c3: s_water = st.text_input("🌊 Water Name/Type:", placeholder="Search...")
 
-with c1:
-    search_name = st.text_input("👤 Legal Name:", placeholder="Search name...")
-with c2:
-    search_auth = st.text_input("🔢 Authorization No:", placeholder="Search ID...")
-with c3:
-    search_water = st.text_input("🌊 Water Name/Type:", placeholder="Search water source...")
+# Logica de filtrare
+d_show = df.copy()
 
-# LOGICA DE FILTRARE
-data_to_show = df.copy()
-
-
-# Funcție pentru a găsi coloana corectă chiar dacă are caractere speciale
-def get_exact_col(target):
-    for col in df.columns:
-        if target.lower().replace(" ", "") in col.lower().replace(" ", ""):
-            return col
-    return None
-
-
-if search_name:
-    col = get_exact_col('legalname') or df.columns[1]
-    data_to_show = data_to_show[data_to_show[col].str.contains(search_name, case=False, na=False)]
-
-if search_auth:
-    col = get_exact_col('authorizationnumber') or df.columns[0]
-    data_to_show = data_to_show[data_to_show[col].str.contains(search_auth, case=False, na=False)]
-
-if search_water:
-    # Căutăm exact coloana indicată de tine: WaterName/Type
-    target_col = "WaterName/Type" if "WaterName/Type" in df.columns else get_exact_col('watername')
-
+if s_name:
+    col = next((c for c in df.columns if 'legal' in c.lower()), df.columns[1])
+    d_show = d_show[d_show[col].str.contains(s_name, case=False, na=False)]
+if s_auth:
+    col = next((c for c in df.columns if 'auth' in c.lower() or 'number' in c.lower()), df.columns[0])
+    d_show = d_show[d_show[col].str.contains(s_auth, case=False, na=False)]
+if s_water:
+    target_col = "WaterName/Type" if "WaterName/Type" in df.columns else next(
+        (c for c in df.columns if 'water' in c.lower()), None)
     if target_col:
-        data_to_show = data_to_show[data_to_show[target_col].str.contains(search_water, case=False, na=False)]
+        d_show = d_show[d_show[target_col].str.contains(s_water, case=False, na=False)]
     else:
-        # Fallback dacă coloana nu e găsită exact
-        mask = data_to_show.apply(lambda row: row.str.contains(search_water, case=False, na=False).any(), axis=1)
-        data_to_show = data_to_show[mask]
+        d_show = d_show[d_show.apply(lambda r: r.str.contains(s_water, case=False).any(), axis=1)]
 
-# Previzualizare limitată
-if not (search_name or search_auth or search_water):
-    data_to_show = df.head(100)
+# Limitare preview
+if not (s_name or s_auth or s_water):
+    d_show = d_show.head(100)
 
-# 5. AG-GRID (Tabelul)
-gb = GridOptionsBuilder.from_dataframe(data_to_show)
-gb.configure_default_column(resizable=True, filterable=True, sortable=True, minWidth=200)
-gb.configure_selection('single', use_checkbox=True)
-gb.configure_pagination(paginationAutoPageSize=False, paginationPageSize=10)
-grid_options = gb.build()
+# --- 5. TABELUL (Metoda Stabilă) ---
+if d_show.empty:
+    st.warning("⚠️ No results found.")
+else:
+    manual_options = {
+        "columnDefs": [{"field": i, "headerName": i} for i in d_show.columns],
+        "defaultColDef": {"resizable": True, "sortable": True, "filter": True, "minWidth": 200},
+        "rowSelection": "single",
+        "pagination": True,
+        "paginationPageSize": 10
+    }
 
-grid_response = AgGrid(
-    data_to_show,
-    gridOptions=grid_options,
-    fit_columns_on_grid_load=False,
-    theme='alpine',
-    height=450,
-    update_mode=GridUpdateMode.SELECTION_CHANGED
-)
+    response = AgGrid(
+        d_show,
+        gridOptions=manual_options,
+        update_mode=GridUpdateMode.SELECTION_CHANGED,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
+        theme='alpine',
+        height=450,
+        fit_columns_on_grid_load=False
+    )
 
-# 6. AFIȘARE DETALII
-selected_rows = grid_response.get('selected_rows', [])
-row_dict = None
+    # --- 6. PARTEA DE JOS (Pop-up/Detail Card + Export) ---
+    sel = response.get('selected_rows')
+    row = None
+    if isinstance(sel, pd.DataFrame) and not sel.empty:
+        row = sel.iloc[0].to_dict()
+    elif isinstance(sel, list) and len(sel) > 0:
+        row = sel[0]
 
-if isinstance(selected_rows, pd.DataFrame) and not selected_rows.empty:
-    row_dict = selected_rows.iloc[0].to_dict()
-elif isinstance(selected_rows, list) and len(selected_rows) > 0:
-    row_dict = selected_rows[0]
+    if row:
+        st.markdown("---")
+        st.markdown('<div class="detail-card">', unsafe_allow_html=True)
+        st.subheader("📋 Complete Record Details")
 
-if row_dict:
-    st.markdown("---")
-    st.markdown('<div class="detail-card">', unsafe_allow_html=True)
-    st.subheader("📋 Complete Record Details")
-    cols = st.columns(3)
-    clean_items = {k: v for k, v in row_dict.items() if not str(k).startswith('_')}
-    for i, (k, v) in enumerate(clean_items.items()):
-        cols[i % 3].markdown(f"**{k}**")
-        cols[i % 3].info(str(v))
-    st.markdown('</div>', unsafe_allow_html=True)
+        cols = st.columns(3)
+        clean_items = {k: v for k, v in row.items() if not str(k).startswith('_')}
+
+        for i, (k, v) in enumerate(clean_items.items()):
+            cols[i % 3].markdown(f"**{k}**")
+            cols[i % 3].info(str(v))
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        # Export rând selectat
+        csv_single = pd.DataFrame([clean_items]).to_csv(index=False).encode('utf-8')
