@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Căutare Permise Apă Queensland</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/nextapps-de/flexsearch@0.7.31/dist/flexsearch.bundle.js"></script>
+    
+    <style>
+        :root { --primary: #0056b3; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; text-align: center; }
+        h1 { margin: 0 0 10px 0; color: var(--primary); font-size: 1.8rem; }
+        
+        #status-container { font-size: 0.9rem; color: #666; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        .spinner { width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .search-box { position: sticky; top: 10px; z-index: 100; }
+        input[type="text"] { width: 100%; padding: 16px 20px; font-size: 1.1rem; border: 2px solid #eee; border-radius: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); outline: none; transition: border-color 0.3s; }
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        #results { margin-top: 20px; display: grid; gap: 15px; }
+        .card { background: white; padding: 18px; border-radius: 8px; border-left: 6px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .card h3 { margin: 0 0 8px 0; font-size: 1.1rem; color: #111; text-transform: uppercase; }
+        .card p { margin: 4px 0; font-size: 0.95rem; color: #555; }
+        .card .ref { font-weight: bold; color: var(--primary); background: #eef4ff; padding: 2px 6px; border-radius: 4px; font-size: 0.85rem; }
+        
+        .no-results { text-align: center; padding: 40px; color: #999; font-style: italic; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Queensland Water Permits Search</h1>
+        <div id="status-container">
+            <span id="status-text">Se încarcă baza de date (15.5 MB)...</span>
+            <div id="loader" class="spinner"></div>
+        </div>
+    </header>
+
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Caută după nume, referință sau adresă..." disabled>
+    </div>
+
+    <div id="results"></div>
+</div>
+
+<script src="index.js"></script>
+
+</body>
+</html>
