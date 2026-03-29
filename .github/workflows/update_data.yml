@@ -1,8 +1,8 @@
 name: Update Queensland Data
 on:
   schedule:
-    - cron: '0 * * * *'  # Rulează automat în fiecare oră
-  workflow_dispatch:      # Îți permite să îl pornești tu cu buton
+    - cron: '0 * * * *'  # Rulează în fiecare oră
+  workflow_dispatch:      # Permite pornirea manuală din tab-ul Actions
 
 jobs:
   build:
