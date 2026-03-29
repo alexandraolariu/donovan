@@ -1,0 +1,26 @@
+name: Update Queensland Data
+on:
+  schedule:
+    - cron: '0 * * * *'  # Rulează automat în fiecare oră
+  workflow_dispatch:      # Îți permite să îl pornești tu cu buton
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Download latest CSV
+        run: |
+          curl -L "https://www.data.qld.gov.au/dataset/8aa66eca-4b37-4864-920a-02d08fd2fba3/resource/a512e9a8-c374-4416-a77d-1be85f3c796e/download/water-licence-attributes.csv" -o water-licence-attributes.csv
+
+      - name: Commit and Push
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "actions@github.com"
+          git add water-licence-attributes.csv
+          git commit -m "Update date live" || exit 0
+          git push
