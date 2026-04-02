@@ -40,19 +40,19 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        # Citim datele
+        # Citim CSV-ul
         df = pd.read_csv("water-licence-attributes.csv", sep=None, engine='python', encoding='cp1252', on_bad_lines='skip')
 
         # 1. Eliminăm coloanele nedorite
         cols_to_drop = [c for c in df.columns if any(x.strip().lower() == c.strip().lower() for x in COLOANE_DE_SCOS)]
         df = df.drop(columns=cols_to_drop)
 
-        # 2. REDENUMIRE COLOANĂ (AuthorisationReference -> Water License)
+        # 2. REDENUMIRE COLOANĂ
         if "AuthorisationReference" in df.columns:
             df = df.rename(columns={"AuthorisationReference": "Water License"})
 
-        # --- REPARAȚIA PENTRU EROAREA LargeUtf8 ---
-        # Resetăm indexul și convertim totul în text curat pentru a trece de eroarea de sistem
+        # --- SINGURA MODIFICARE NECESARĂ ---
+        # Convertim totul în string și resetăm indexul (asta omoară eroarea LargeUtf8)
         return df.fillna('N/A').astype(str).reset_index(drop=True)
     except:
         return pd.DataFrame()
@@ -136,8 +136,7 @@ else:
                 st.info(str(v))
 
         csv_single = pd.DataFrame([clean_items]).to_csv(index=False).encode('utf-8')
-        st.download_button(f"📥 Export License {row.get('Water License', '')}", csv_single, "license_detail.csv",
-                           "text/csv")
+        st.download_button(f"📥 Export License {row.get('Water License', '')}", csv_single, "license_detail.csv", "text/csv")
         st.markdown('</div>', unsafe_allow_html=True)
 
 # 7. EXPORT GLOBAL
