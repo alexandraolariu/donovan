@@ -71,19 +71,24 @@ if s_water:
 
 # 5. TABELUL MODERN
 st.markdown("### 📋 Results")
-st.info("💡 Bifează pătrățelul din stânga unui rând pentru a-i vedea toate detaliile.")
+st.info("💡 Select a row to view details.")
 
-# Stabilim ce afișăm (limitat la 100 dacă nu e căutare, pentru viteză)
+# Ensure we have data to show
 final_df = d_show.head(100) if not (s_name or s_auth or s_water) else d_show
 
-# Tabelul cu selecție activată
-selection = st.dataframe(
-    final_df,
-    use_container_width=True,
-    hide_index=True,
-    on_select="rerun",
-    selection_mode="single"
-)
+# Use selection only if the dataframe isn't empty
+if not final_df.empty:
+    selection = st.dataframe(
+        final_df,
+        use_container_width=True,
+        hide_index=True,
+        on_select="rerun",
+        selection_mode="single-row" # Changed 'single' to 'single-row' for better compatibility in some versions
+    )
+else:
+    st.warning("No results found.")
+    selection = None
+    
 
 # 6. DETALII POP-UP (Aici era eroarea roșie - acum e reparată)
 if selection and len(selection.get("selection", {}).get("rows", [])) > 0:
