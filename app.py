@@ -40,8 +40,8 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        # Folosim engine='c' pentru viteză și stabilitate la CSV-uri mari
-        df = pd.read_csv("water-licence-attributes.csv", sep=',', engine='c', encoding='cp1252', on_bad_lines='skip')
+        # Citim datele
+        df = pd.read_csv("water-licence-attributes.csv", sep=None, engine='python', encoding='cp1252', on_bad_lines='skip')
 
         # 1. Eliminăm coloanele nedorite
         cols_to_drop = [c for c in df.columns if any(x.strip().lower() == c.strip().lower() for x in COLOANE_DE_SCOS)]
@@ -51,10 +51,10 @@ def load_data():
         if "AuthorisationReference" in df.columns:
             df = df.rename(columns={"AuthorisationReference": "Water License"})
 
-        # IMPORTANT: Convertim totul în string și dăm reset la index pentru a evita eroarea LargeUtf8 în AgGrid
+        # --- REPARAȚIA PENTRU EROAREA LargeUtf8 ---
+        # Resetăm indexul și convertim totul în text curat pentru a trece de eroarea de sistem
         return df.fillna('N/A').astype(str).reset_index(drop=True)
-    except Exception as e:
-        st.error(f"Eroare la încărcarea datelor: {e}")
+    except:
         return pd.DataFrame()
 
 
@@ -116,8 +116,6 @@ else:
     # 6. DETALII POP-UP
     sel = response.get('selected_rows')
     row = None
-    
-    # Rezolvăm compatibilitatea între versiuni diferite de AgGrid pentru selecție
     if sel is not None:
         if isinstance(sel, pd.DataFrame) and not sel.empty:
             row = sel.iloc[0].to_dict()
