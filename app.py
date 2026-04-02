@@ -40,8 +40,8 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("water-licence-attributes.csv", sep=None, engine='python', encoding='cp1252',
-                         on_bad_lines='skip')
+        # Folosim engine='c' pentru viteză și stabilitate la CSV-uri mari
+        df = pd.read_csv("water-licence-attributes.csv", sep=',', engine='c', encoding='cp1252', on_bad_lines='skip')
 
         # 1. Eliminăm coloanele nedorite
         cols_to_drop = [c for c in df.columns if any(x.strip().lower() == c.strip().lower() for x in COLOANE_DE_SCOS)]
@@ -51,8 +51,10 @@ def load_data():
         if "AuthorisationReference" in df.columns:
             df = df.rename(columns={"AuthorisationReference": "Water License"})
 
-        return df.fillna('N/A').astype(str)
-    except:
+        # IMPORTANT: Convertim totul în string și dăm reset la index pentru a evita eroarea LargeUtf8 în AgGrid
+        return df.fillna('N/A').astype(str).reset_index(drop=True)
+    except Exception as e:
+        st.error(f"Eroare la încărcarea datelor: {e}")
         return pd.DataFrame()
 
 
@@ -61,10 +63,10 @@ df = load_data()
 # --- INTERFAȚA ---
 st.title("💧 Water License Search Portal")
 
-# 4. CĂUTĂRI (Actualizate pentru noul nume)
+# 4. CĂUTĂRI
 c1, c2, c3 = st.columns(3)
 with c1: s_name = st.text_input("👤 Legal Name:", placeholder="Search name...")
-with c2: s_auth = st.text_input("🔢 Water License No:", placeholder="Search ID...")  # Am schimbat eticheta aici
+with c2: s_auth = st.text_input("🔢 Water License No:", placeholder="Search ID...")
 with c3: s_water = st.text_input("🌊 Water Name/Type:", placeholder="Search water source...")
 
 # Filtrare
@@ -74,7 +76,6 @@ if s_name:
     col = next((c for c in df.columns if 'legal' in c.lower()), df.columns[0])
     d_show = d_show[d_show[col].str.contains(s_name, case=False, na=False)]
 if s_auth:
-    # Căutăm în coloana redenumită "Water License"
     col = "Water License" if "Water License" in d_show.columns else d_show.columns[0]
     d_show = d_show[d_show[col].str.contains(s_auth, case=False, na=False)]
 if s_water:
@@ -106,6 +107,7 @@ else:
         d_show,
         gridOptions=manual_options,
         update_mode=GridUpdateMode.SELECTION_CHANGED,
+        data_return_mode=DataReturnMode.FILTERED_AND_SORTED,
         theme='alpine',
         height=450,
         fit_columns_on_grid_load=False
@@ -114,10 +116,13 @@ else:
     # 6. DETALII POP-UP
     sel = response.get('selected_rows')
     row = None
-    if isinstance(sel, pd.DataFrame) and not sel.empty:
-        row = sel.iloc[0].to_dict()
-    elif isinstance(sel, list) and len(sel) > 0:
-        row = sel[0]
+    
+    # Rezolvăm compatibilitatea între versiuni diferite de AgGrid pentru selecție
+    if sel is not None:
+        if isinstance(sel, pd.DataFrame) and not sel.empty:
+            row = sel.iloc[0].to_dict()
+        elif isinstance(sel, list) and len(sel) > 0:
+            row = sel[0]
 
     if row:
         st.markdown("---")
