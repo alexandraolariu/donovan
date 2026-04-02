@@ -32,7 +32,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        # Citim datele - motorul modern rezolvă automat LargeUtf8
+        # Citim datele
         df = pd.read_csv("water-licence-attributes.csv", encoding='cp1252', on_bad_lines='skip')
 
         # Eliminăm coloanele nedorite
@@ -69,24 +69,26 @@ if s_water:
     if target_col:
         d_show = d_show[d_show[target_col].astype(str).str.contains(s_water, case=False, na=False)]
 
-# 5. TABELUL MODERN (Înlocuitor AgGrid)
+# 5. TABELUL MODERN
 st.markdown("### 📋 Results")
-st.info("💡 Selectează un rând folosind bifa din stânga pentru a vedea detaliile.")
+st.info("💡 Bifează pătrățelul din stânga unui rând pentru a-i vedea toate detaliile.")
 
-# Folosim noul st.dataframe cu selecție activată
+# Stabilim ce afișăm (limitat la 100 dacă nu e căutare, pentru viteză)
+final_df = d_show.head(100) if not (s_name or s_auth or s_water) else d_show
+
+# Tabelul cu selecție activată
 selection = st.dataframe(
-    d_show.head(100) if not (s_name or s_auth or s_water) else d_show,
+    final_df,
     use_container_width=True,
     hide_index=True,
     on_select="rerun",
     selection_mode="single"
 )
 
-# 6. DETALII POP-UP (Se activează la selecție)
-selected_indices = selection.selection.rows
-if selected_indices:
-    # Extragem rândul selectat
-    row_data = d_show.iloc[selected_indices[0]].to_dict()
+# 6. DETALII POP-UP (Aici era eroarea roșie - acum e reparată)
+if selection and len(selection.get("selection", {}).get("rows", [])) > 0:
+    selected_row_index = selection["selection"]["rows"][0]
+    row_data = final_df.iloc[selected_row_index].to_dict()
     
     st.markdown("---")
     st.markdown('<div class="detail-card">', unsafe_allow_html=True)
@@ -96,9 +98,9 @@ if selected_indices:
     for i, (k, v) in enumerate(row_data.items()):
         with cols[i % 3]:
             st.write(f"**{k}**")
-            st.code(str(v), language=None)
+            st.info(str(v))
             
-    # Download button pentru rândul selectat
+    # Export pentru rândul selectat
     csv_single = pd.DataFrame([row_data]).to_csv(index=False).encode('utf-8')
     st.download_button("📥 Export this record", csv_single, "license_detail.csv", "text/csv")
     st.markdown('</div>', unsafe_allow_html=True)
